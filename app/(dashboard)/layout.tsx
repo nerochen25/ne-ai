@@ -1,23 +1,40 @@
-import Navbar from "@/components/navbar";
-import Sidebar from "@/components/sidebar";
-import { getApiLimitCount } from "@/lib/api-limit";
-import { checkSubscription } from "@/lib/subscription";
-
-const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
-  const apiLimitCount = await getApiLimitCount();
-  const isPro = await checkSubscription();
-
-  return (
-    <div className="h-full relative">
-      <div className="hidden h-full md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 bg-gray-900">
-        <Sidebar apiLimitCount={apiLimitCount} isPro={isPro} />
-      </div>
-      <main className="md:pl-72">
-        <Navbar />
-        {children}
+import Link from "next/link";
+import { requireOwner } from "@/lib/server/auth";
+import { capabilities } from "@/lib/server/config";
+import { AppError } from "@/lib/server/errors";
+import { Shell } from "@/features/workspace/shell";
+export const dynamic = "force-dynamic";
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  let owner: string;
+  try {
+    owner = await requireOwner();
+  } catch (error) {
+    const e = error instanceof AppError ? error : null;
+    return (
+      <main className="access-page">
+        <div className="access-card">
+          <span className="eyebrow">NE-AI / PRIVATE WORKSPACE</span>
+          <h1>
+            {e?.status === 401 ? "Welcome back." : "Your space starts here."}
+          </h1>
+          <p>{e?.message || "The workspace is temporarily unavailable."}</p>
+          <Link className="button" href={e?.status === 401 ? "/sign-in" : "/"}>
+            {e?.status === 401 ? "Sign in" : "Back to welcome"}
+          </Link>
+          <p className="muted text-sm">
+            Setup instructions are in the repository README.
+          </p>
+        </div>
       </main>
-    </div>
+    );
+  }
+  return (
+    <Shell ownerId={owner} capabilities={capabilities()}>
+      {children}
+    </Shell>
   );
-};
-
-export default DashboardLayout;
+}

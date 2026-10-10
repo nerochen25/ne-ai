@@ -1,13 +1,15 @@
-const AuthLayout = ({
-    children
+import Link from "next/link";
+export default function AuthLayout({
+  children,
 }: {
-    children: React.ReactNode;
-}) => {
-    return (
-        <div className="flex items-center justify-center h-full">
-            {children}
-        </div>
-    )
-};
-
-export default AuthLayout;
+  children: React.ReactNode;
+}) {
+  return (
+    <main className="access-page">
+      <Link className="brand" href="/">
+        NE-AI.
+      </Link>
+      {children}
+    </main>
+  );
+}
