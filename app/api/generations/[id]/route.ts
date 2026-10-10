@@ -3,7 +3,7 @@ import { getGeneration } from "@/lib/server/repository";
 import { refreshMedia, runMedia } from "@/lib/server/generation";
 import { errorResponse } from "@/lib/server/errors";
 import { after } from "next/server";
-export const maxDuration = 300;
+export const maxDuration = 60;
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },

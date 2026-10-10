@@ -17,6 +17,8 @@ import {
 import { putObject, removeObject, extension } from "./storage";
 
 export async function handleText(req: Request, tool: "chat" | "code") {
+  // Reserve time within the routes' 60-second host limit for final persistence.
+  const deadline = Date.now() + 45000;
   const requestId = crypto.randomUUID();
   let reserved: Generation | undefined;
   try {
@@ -40,7 +42,14 @@ export async function handleText(req: Request, tool: "chat" | "code") {
     const conversation = await repo.getConversation(owner, g.conversationId!);
     const encoder = new TextEncoder(),
       abort = new AbortController();
-    const timeout = setTimeout(() => abort.abort(), 180000);
+    let timedOut = false;
+    const timeout = setTimeout(
+      () => {
+        timedOut = true;
+        abort.abort();
+      },
+      Math.max(0, deadline - Date.now()),
+    );
     const onAbort = () => abort.abort();
     if (req.signal.aborted) abort.abort();
     req.signal.addEventListener("abort", onAbort, { once: true });
@@ -117,9 +126,11 @@ export async function handleText(req: Request, tool: "chat" | "code") {
           await repo.finish(g.id, "completed", null, tokens, content);
           send({ type: "done", generationId: g.id });
         } catch {
-          const status = abort.signal.aborted ? "cancelled" : "failed";
-          const message =
-            status === "cancelled"
+          const status =
+            !timedOut && abort.signal.aborted ? "cancelled" : "failed";
+          const message = timedOut
+            ? "The response reached the time limit. Partial work is saved. Try a shorter request or continue from this response."
+            : status === "cancelled"
               ? "Generation stopped. Partial work is saved; provider charges may still apply."
               : "The response was interrupted. Your partial work is saved. You can retry.";
           try {

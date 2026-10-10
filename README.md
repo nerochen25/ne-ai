@@ -83,7 +83,9 @@ Chat enables the OpenAI `web_search` tool by default, with at most three tool ca
 
 Chat sends bounded server-stored history to the Responses API with `store: false`. Partial assistant output is checkpointed while streaming. Stop requests cancel the stream and request server-side cancellation, but cannot guarantee that provider billing stops immediately. The app keeps its own history; provider-side retention remains subject to your provider settings.
 
-Media requests create persisted jobs and return HTTP 202. `after()` starts work after the response; the app polls job status while open. Deploy on a Node.js host that supports Next.js `after()` and at least a **300-second request lifetime**. A static export is not supported.
+Media requests create persisted jobs and return HTTP 202. `after()` starts work after the response; the app polls job status while open. Route limits are set to **60 seconds** to support Vercel projects enforcing the Hobby 60-second maximum. Chat/code stop provider work after a 45-second request budget, leaving time to save partial output before the host limit. A static export is not supported.
+
+Media remains deferred for this deployment: image generation and file ingestion can exceed 60 seconds, and `after()` does not extend the host lifetime. Before enabling media, use a host/worker with sufficient execution time and update the route limits to match. See [Vercel duration configuration](https://vercel.com/docs/functions/configuring-functions/duration); limits differ with Fluid Compute enabled.
 
 Configure an authenticated scheduler to call the following endpoint **every minute**, even when no browser is open:
 
@@ -142,7 +144,7 @@ npm run build
 1. Provision a new MySQL database and private S3-compatible bucket. Back up data and set bucket retention policies.
 2. Configure production Clerk keys, owner IDs, canonical `APP_URL`, provider models, and server secrets.
 3. Run `npm ci`, apply migrations to the intended new database, then `npm run build` and `npm start`.
-4. Configure the authenticated minute-level dispatcher and a 300-second request lifetime; disable response buffering for NDJSON streams.
+4. Configure an external authenticated minute-level dispatcher for abandoned-job recovery. Keep the 60-second route limits within your hosting plan and disable response buffering for NDJSON streams. Leave media unconfigured until its worker lifetime and storage are verified.
 5. Verify sign-in denial for non-owners, saved chat after reload, partial-response recovery, asset downloads, and media job completion with your real service accounts before relying on the deployment.
 
 Next improvements after the essentials are validated: document-grounded answers, richer conversation organization, and additional model providers. Billing, teams, code execution, and autonomous agents are outside this release.
