@@ -1,34 +1,31 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
-
-import { ModalProvider } from "@/components/modal-provider";
-import { ToasterProvider } from "@/components/toaster-provider";
-import { CrispProvider } from "@/components/crisp-provider";
-
-const inter = Inter({ subsets: ["latin"] });
-
+import { Providers } from "@/features/workspace/providers";
 export const metadata: Metadata = {
-  title: "Ne-AI",
-  description: "AI Platform",
+  title: {
+    default: "NE-AI · A little space for big ideas",
+    template: "%s · NE-AI",
+  },
+  description:
+    "Your private workspace for thinking, writing code, and creating images.",
+  robots: { index: false, follow: false },
 };
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <ClerkProvider>
-      <html lang="en">
-        <CrispProvider />
-        <body className={inter.className}>
-          <ModalProvider />
-          <ToasterProvider />
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+  const content = (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+  return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
+    <ClerkProvider>{content}</ClerkProvider>
+  ) : (
+    content
   );
 }

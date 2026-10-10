@@ -4,23 +4,95 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url = env("DATABASE_URL")
-  relationMode = "prisma"
+  url      = env("DATABASE_URL")
 }
 
-model UserApiLimit {
-  id String @id @default(cuid())
-  userId String @unique
-  count Int @default(0)
-  createdAt DateTime @default(now())
-  updateAt DateTime @updatedAt
+model Owner {
+  id            String         @id @db.VarChar(191)
+  conversations Conversation[]
+  generations   Generation[]
+  usage         UsageRecord[]
 }
 
-model UserSubscription {
-  id String @id @default(cuid())
-  userId String @unique
-  stripeCustomerId String? @unique @map(name: "stripe_customer_id")
-  stripeSubscriptionId String? @unique @map(name: "stripe_subscription_id")
-  stripePriceId String? @map(name: "stripe_price_id")
-  stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
+model Conversation {
+  id          String       @id @default(cuid())
+  ownerId     String
+  owner       Owner        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title       String       @db.VarChar(160)
+  tool        String       @db.VarChar(16)
+  favorite    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  messages    Message[]
+  generations Generation[]
+
+  @@index([ownerId, updatedAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  generationId   String
+  role           String       @db.VarChar(16)
+  content        String       @db.LongText
+  status         String       @db.VarChar(16)
+  createdAt      DateTime     @default(now())
+
+  @@unique([generationId, role])
+  @@index([conversationId, createdAt])
+}
+
+model Generation {
+  id              String        @id @default(cuid())
+  ownerId         String
+  owner           Owner         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  conversationId  String?
+  conversation    Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  tool            String        @db.VarChar(16)
+  title           String        @db.VarChar(160)
+  prompt          String        @db.Text
+  favorite        Boolean       @default(false)
+  options         Json
+  status          String        @db.VarChar(16)
+  cancelRequested Boolean       @default(false)
+  error           String?       @db.VarChar(300)
+  providerId      String?       @db.VarChar(191)
+  idempotencyKey  String        @db.VarChar(64)
+  fingerprint     String        @db.VarChar(64)
+  inputTokens     Int           @default(0)
+  outputTokens    Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  assets          Asset[]
+  usage           UsageRecord?
+
+  @@unique([ownerId, idempotencyKey])
+  @@index([ownerId, status, createdAt])
+}
+
+model Asset {
+  id           String     @id @default(cuid())
+  generationId String
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  ownerId      String
+  key          String     @unique @db.VarChar(500)
+  mime         String     @db.VarChar(100)
+  size         Int
+
+  @@index([ownerId])
+}
+
+model UsageRecord {
+  id           String      @id @default(cuid())
+  ownerId      String
+  owner        Owner       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  generationId String?     @unique
+  generation   Generation? @relation(fields: [generationId], references: [id], onDelete: SetNull)
+  tool         String      @db.VarChar(16)
+  inputTokens  Int         @default(0)
+  outputTokens Int         @default(0)
+  createdAt    DateTime    @default(now())
+
+  @@index([ownerId, createdAt])
 }
